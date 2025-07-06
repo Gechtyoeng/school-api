@@ -44,13 +44,62 @@ export const createTeacher = async (req, res) => {
  *   get:
  *     summary: Get all teachers
  *     tags: [Teachers]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *         description: Number of items per page
+ *       - in: query
+ *         name: sort
+ *         schema: 
+ *          type: string  
+ *          enum: [name, -name]  
+ *         description: sort by desc use (-name) sort by asc use (name)
+ *       - in: query
+ *         name: populate
+ *         schema:
+ *          type: string
+ *          enum: [course]
  *     responses:
  *       200:
  *         description: List of teachers
  */
 export const getAllTeachers = async (req, res) => {
+     // take certain amount at a time
+    const limit = parseInt(req.query.limit) || 10;
+    // which page to take
+    const page = parseInt(req.query.page) || 1;
+
+    //sort by asc or sort by desc
+    const sortParam = req.query.sort;
+    let sortField;
+    if(sortParam){
+        if(sortParam.startsWith('-')){
+            sortField = [[sortParam.slice(1),'DESC']];
+        }else{
+            sortField = [[sortParam, 'ASC']];
+        }
+    }
+
+    //populate with course
+    const populate = req.query.populate;
+    let include = [];
+
+    if(populate){
+            include.push({model: db.Course})
+        }
+
     try {
-        const teachers = await db.Teacher.findAll({ include: db.Course });
+        const teachers = await db.Teacher.findAll({ 
+            limit: limit, 
+            offset: (page - 1) * limit,
+            ...(sortField && { order: sortField }),
+            include: include
+        });
         res.json(teachers);
     } catch (err) {
         res.status(500).json({ error: err.message });
